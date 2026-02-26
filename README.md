@@ -102,6 +102,7 @@ make pre-push
 
 Note: `make test-e2e` runs `make e2e-install` first, so first-time machines auto-install Playwright Chromium.
 Note: E2E web servers are isolated from Compose default ports, so `make pre-push` can run even if `make up` is active.
+Note: `make test-race` requires `CGO_ENABLED=1` and a working `gcc` toolchain on macOS/Linux/Windows (for example Xcode CLT, build-essential, or MSYS2/MinGW). It is intentionally not part of `make pre-push`.
 
 ## What I Would Improve/Change For Production
 - Replace in-memory cache with Redis for shared cache across instances, stronger invalidation options, and better horizontal scaling.

@@ -9,9 +9,9 @@ GOLANGCI_LINT ?= $(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@$
 COMPOSE_WITH_ENV = $(COMPOSE) --env-file $(ENV_FILE)
 
 ifeq ($(OS),Windows_NT)
-ECHO_BLANK := @echo.
+ECHO_BLANK := @powershell -NoProfile -Command "Write-Output ''"
 else
-ECHO_BLANK := @echo ""
+ECHO_BLANK := @printf '\n'
 endif
 
 .PHONY: help env-file-check docker-check up down reset seed logs test test-backend frontend-deps test-frontend frontend-lint frontend-check test-e2e e2e-install test-race fmt fmt-check vet lint compose-check pre-push clean
@@ -126,7 +126,12 @@ e2e-install: frontend-deps
 
 test-race:
 	@echo [test-race] Running Go race tests (CGO + gcc required)...
+ifeq ($(OS),Windows_NT)
+	@powershell -NoProfile -Command 'if (-not (Get-Command gcc -ErrorAction SilentlyContinue)) { [Console]::Error.WriteLine("[test-race] gcc not found. Install gcc (for example via MSYS2/MinGW) and retry."); exit 1 }; Push-Location "$(BACKEND_DIR)"; $$env:CGO_ENABLED = "1"; $(GO) test ./... -race; $$exitCode = $$LASTEXITCODE; Pop-Location; if ($$exitCode -ne 0) { exit $$exitCode }; Write-Output "[test-race] Passed [OK]"'
+else
+	@command -v gcc > /dev/null 2>&1 || { echo "[test-race] gcc not found. Install gcc and retry."; exit 1; }
 	@cd $(BACKEND_DIR) && CGO_ENABLED=1 $(GO) test ./... -race && echo [test-race] Passed [OK]
+endif
 
 fmt:
 	@echo [fmt] Formatting backend Go code...
