@@ -9,9 +9,26 @@ GOLANGCI_LINT ?= $(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@$
 COMPOSE_WITH_ENV = $(COMPOSE) --env-file $(ENV_FILE)
 
 ifeq ($(OS),Windows_NT)
-ECHO_BLANK := @powershell -NoProfile -Command "Write-Output ''"
+PWSH := powershell -NoProfile -Command
+ECHO_BLANK := @$(PWSH) "Write-Output ''"
+CHECK_ENV_FILE := @$(PWSH) "if (-not (Test-Path '$(ENV_FILE)')) { Write-Error 'Missing $(ENV_FILE)'; exit 1 }"
+CHECK_METADATA_FILE := @$(PWSH) "if (-not (Test-Path '$(BACKEND_DIR)/data/metadata.json')) { Write-Error 'Missing $(BACKEND_DIR)/data/metadata.json'; exit 1 }"
+CHECK_DETAILS_FILE := @$(PWSH) "if (-not (Test-Path '$(BACKEND_DIR)/data/details.json')) { Write-Error 'Missing $(BACKEND_DIR)/data/details.json'; exit 1 }"
+RUN_DOCKER_CHECK := @$(PWSH) 'docker --version > $$null 2>&1; if ($$LASTEXITCODE -ne 0) { Write-Error "[docker-check] Docker CLI not found. Install Docker Desktop and retry."; exit 1 }; docker info > $$null 2>&1; if ($$LASTEXITCODE -ne 0) { Write-Error "[docker-check] Docker engine is not reachable. Start Docker Desktop and wait until it is running, then retry make up."; exit 1 }; Write-Output "[docker-check] Docker engine reachable [OK]"'
+RUN_FMT_CHECK := @$(PWSH) 'Push-Location "$(BACKEND_DIR)"; $$unformatted = gofmt -l .; Pop-Location; if ($$unformatted) { $$unformatted; Write-Error "[fmt-check] Unformatted files found"; exit 1 }; Write-Output "[fmt-check] Passed [OK]"'
+RUN_COMPOSE_CHECK := @$(PWSH) '$(COMPOSE_WITH_ENV) config *> $$null; if ($$LASTEXITCODE -ne 0) { exit 1 }; Write-Output "[compose-check] Passed [OK]"'
+RUN_TEST_RACE := @$(PWSH) 'if (-not (Get-Command gcc -ErrorAction SilentlyContinue)) { [Console]::Error.WriteLine("[test-race] gcc not found. Install gcc (for example via MSYS2/MinGW) and retry."); exit 1 }; Push-Location "$(BACKEND_DIR)"; $$env:CGO_ENABLED = "1"; $(GO) test ./... -race; $$exitCode = $$LASTEXITCODE; Pop-Location; if ($$exitCode -ne 0) { exit $$exitCode }; Write-Output "[test-race] Passed [OK]"'
+RUN_FRONTEND_DEPS := @$(PWSH) 'Push-Location "$(FRONTEND_VUE_DIR)"; $(NPM) ci; if ($$LASTEXITCODE -ne 0) { Write-Output "[frontend-deps] npm ci failed, retrying with npx npm@10 ci..."; npx --yes npm@10 ci; if ($$LASTEXITCODE -ne 0) { Pop-Location; exit $$LASTEXITCODE } }; Pop-Location; Write-Output "[frontend-deps] Installed [OK]"'
 else
 ECHO_BLANK := @printf '\n'
+CHECK_ENV_FILE := @test -f $(ENV_FILE)
+CHECK_METADATA_FILE := @test -f $(BACKEND_DIR)/data/metadata.json
+CHECK_DETAILS_FILE := @test -f $(BACKEND_DIR)/data/details.json
+RUN_DOCKER_CHECK := @command -v docker > /dev/null 2>&1 || { echo "[docker-check] Docker CLI not found. Install Docker and retry."; exit 1; }; docker info > /dev/null 2>&1 || { echo "[docker-check] Docker engine is not reachable. Start Docker daemon/Desktop and retry."; exit 1; }; echo [docker-check] Docker engine reachable [OK]
+RUN_FMT_CHECK := @cd $(BACKEND_DIR) && files="$$(gofmt -l .)"; if [ -n "$$files" ]; then echo "$$files"; echo "[fmt-check] Unformatted files found"; exit 1; fi && echo [fmt-check] Passed [OK]
+RUN_COMPOSE_CHECK := @$(COMPOSE_WITH_ENV) config > /dev/null && echo [compose-check] Passed [OK]
+RUN_TEST_RACE := @command -v gcc > /dev/null 2>&1 || { echo "[test-race] gcc not found. Install gcc and retry."; exit 1; }; cd $(BACKEND_DIR) && CGO_ENABLED=1 $(GO) test ./... -race && echo [test-race] Passed [OK]
+RUN_FRONTEND_DEPS := @cd $(FRONTEND_VUE_DIR) && ($(NPM) ci || (echo "[frontend-deps] npm ci failed, retrying with npx npm@10 ci..."; command -v npx > /dev/null 2>&1 || { echo "[frontend-deps] npx not found. Install Node.js 18+ and npm 9+."; exit 1; }; npx --yes npm@10 ci)) && echo [frontend-deps] Installed [OK]
 endif
 
 .PHONY: help env-file-check docker-check up down reset seed logs test test-backend frontend-deps test-frontend frontend-lint frontend-check test-e2e e2e-install test-race fmt fmt-check vet lint compose-check pre-push clean
@@ -53,21 +70,11 @@ help:
 	@echo   make pre-push       - Run fmt, vet, lint, unit tests, E2E tests, and compose validation
 
 env-file-check:
-ifeq ($(OS),Windows_NT)
-	@powershell -NoProfile -Command "if (-not (Test-Path '$(ENV_FILE)')) { Write-Error 'Missing $(ENV_FILE)'; exit 1 }"
-else
-	@test -f $(ENV_FILE)
-endif
+	$(CHECK_ENV_FILE)
 	@echo [env] Using env file: $(ENV_FILE) [OK]
 
 docker-check:
-ifeq ($(OS),Windows_NT)
-	@powershell -NoProfile -Command 'docker --version > $$null 2>&1; if ($$LASTEXITCODE -ne 0) { Write-Error "[docker-check] Docker CLI not found. Install Docker Desktop and retry."; exit 1 }; docker info > $$null 2>&1; if ($$LASTEXITCODE -ne 0) { Write-Error "[docker-check] Docker engine is not reachable. Start Docker Desktop and wait until it is running, then retry make up."; exit 1 }; Write-Output "[docker-check] Docker engine reachable [OK]"'
-else
-	@command -v docker > /dev/null 2>&1 || { echo "[docker-check] Docker CLI not found. Install Docker and retry."; exit 1; }
-	@docker info > /dev/null 2>&1 || { echo "[docker-check] Docker engine is not reachable. Start Docker daemon/Desktop and retry."; exit 1; }
-	@echo [docker-check] Docker engine reachable [OK]
-endif
+	$(RUN_DOCKER_CHECK)
 
 up: env-file-check docker-check compose-check
 	@echo [up] Starting backend + frontend with Docker Compose...
@@ -81,13 +88,8 @@ reset: down seed up
 
 seed:
 	@echo [seed] Checking seed files...
-ifeq ($(OS),Windows_NT)
-	@powershell -NoProfile -Command "if (-not (Test-Path '$(BACKEND_DIR)/data/metadata.json')) { Write-Error 'Missing $(BACKEND_DIR)/data/metadata.json'; exit 1 }"
-	@powershell -NoProfile -Command "if (-not (Test-Path '$(BACKEND_DIR)/data/details.json')) { Write-Error 'Missing $(BACKEND_DIR)/data/details.json'; exit 1 }"
-else
-	@test -f $(BACKEND_DIR)/data/metadata.json
-	@test -f $(BACKEND_DIR)/data/details.json
-endif
+	$(CHECK_METADATA_FILE)
+	$(CHECK_DETAILS_FILE)
 	@echo [seed] Seed data is present in $(BACKEND_DIR)/data [OK]
 
 logs: env-file-check docker-check
@@ -102,7 +104,7 @@ test-backend:
 
 frontend-deps:
 	@echo [frontend-deps] Installing frontend dependencies...
-	@cd $(FRONTEND_VUE_DIR) && $(NPM) ci && echo [frontend-deps] Installed [OK]
+	$(RUN_FRONTEND_DEPS)
 
 test-frontend: frontend-deps
 	@echo [test-frontend] Running frontend unit tests...
@@ -126,12 +128,7 @@ e2e-install: frontend-deps
 
 test-race:
 	@echo [test-race] Running Go race tests - requires CGO and gcc...
-ifeq ($(OS),Windows_NT)
-	@powershell -NoProfile -Command 'if (-not (Get-Command gcc -ErrorAction SilentlyContinue)) { [Console]::Error.WriteLine("[test-race] gcc not found. Install gcc (for example via MSYS2/MinGW) and retry."); exit 1 }; Push-Location "$(BACKEND_DIR)"; $$env:CGO_ENABLED = "1"; $(GO) test ./... -race; $$exitCode = $$LASTEXITCODE; Pop-Location; if ($$exitCode -ne 0) { exit $$exitCode }; Write-Output "[test-race] Passed [OK]"'
-else
-	@command -v gcc > /dev/null 2>&1 || { echo "[test-race] gcc not found. Install gcc and retry."; exit 1; }
-	@cd $(BACKEND_DIR) && CGO_ENABLED=1 $(GO) test ./... -race && echo [test-race] Passed [OK]
-endif
+	$(RUN_TEST_RACE)
 
 fmt:
 	@echo [fmt] Formatting backend Go code...
@@ -139,11 +136,7 @@ fmt:
 
 fmt-check:
 	@echo [fmt-check] Checking backend Go formatting...
-ifeq ($(OS),Windows_NT)
-	@powershell -NoProfile -Command 'Push-Location "$(BACKEND_DIR)"; $$unformatted = gofmt -l .; Pop-Location; if ($$unformatted) { $$unformatted; Write-Error "[fmt-check] Unformatted files found"; exit 1 }; Write-Output "[fmt-check] Passed [OK]"'
-else
-	@cd $(BACKEND_DIR) && files="$$(gofmt -l .)"; if [ -n "$$files" ]; then echo "$$files"; echo "[fmt-check] Unformatted files found"; exit 1; fi && echo [fmt-check] Passed [OK]
-endif
+	$(RUN_FMT_CHECK)
 
 vet:
 	@echo [vet] Running go vet...
@@ -155,11 +148,7 @@ lint:
 
 compose-check: env-file-check docker-check
 	@echo [compose-check] Validating docker-compose.yml...
-ifeq ($(OS),Windows_NT)
-	@powershell -NoProfile -Command '$(COMPOSE_WITH_ENV) config *> $$null; if ($$LASTEXITCODE -ne 0) { exit 1 }; Write-Output "[compose-check] Passed [OK]"'
-else
-	@$(COMPOSE_WITH_ENV) config > /dev/null && echo [compose-check] Passed [OK]
-endif
+	$(RUN_COMPOSE_CHECK)
 
 pre-push: fmt-check vet lint frontend-lint frontend-check test test-e2e compose-check
 	@echo [pre-push] All checks passed [OK]
