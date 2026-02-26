@@ -20,7 +20,7 @@ help:
 	@echo Available targets:
 	$(ECHO_BLANK)
 	@echo [Environment]
-	@echo   make env-file-check - Verify selected env file exists (.env or .env.example)
+	@echo   make env-file-check - Verify selected env file exists: .env or .env.example
 	@echo   make docker-check    - Verify Docker CLI + daemon availability
 	@echo   make seed           - Validate backend seed data files
 	$(ECHO_BLANK)
@@ -41,13 +41,13 @@ help:
 	@echo [Testing]
 	@echo   make test           - Run backend + frontend unit tests
 	@echo   make test-backend   - Run backend tests
-	@echo   make frontend-deps  - Install frontend dependencies (npm ci)
-	@echo   make test-frontend  - Run frontend unit tests (Vitest)
+	@echo   make frontend-deps  - Install frontend dependencies via npm ci
+	@echo   make test-frontend  - Run frontend unit tests via Vitest
 	@echo   make frontend-lint  - Run frontend ESLint checks
 	@echo   make frontend-check - Run frontend production build check
 	@echo   make test-e2e       - Run frontend Playwright E2E tests
 	@echo   make e2e-install    - Install Playwright Chromium browser
-	@echo   make test-race      - Run backend race tests (requires CGO + gcc)
+	@echo   make test-race      - Run backend race tests; requires CGO and gcc
 	$(ECHO_BLANK)
 	@echo [CI / Gate]
 	@echo   make pre-push       - Run fmt, vet, lint, unit tests, E2E tests, and compose validation
@@ -125,7 +125,7 @@ e2e-install: frontend-deps
 	@cd $(FRONTEND_VUE_DIR) && $(NPM) run e2e:install && echo [e2e-install] Done [OK]
 
 test-race:
-	@echo [test-race] Running Go race tests (CGO + gcc required)...
+	@echo [test-race] Running Go race tests - requires CGO and gcc...
 ifeq ($(OS),Windows_NT)
 	@powershell -NoProfile -Command 'if (-not (Get-Command gcc -ErrorAction SilentlyContinue)) { [Console]::Error.WriteLine("[test-race] gcc not found. Install gcc (for example via MSYS2/MinGW) and retry."); exit 1 }; Push-Location "$(BACKEND_DIR)"; $$env:CGO_ENABLED = "1"; $(GO) test ./... -race; $$exitCode = $$LASTEXITCODE; Pop-Location; if ($$exitCode -ne 0) { exit $$exitCode }; Write-Output "[test-race] Passed [OK]"'
 else
