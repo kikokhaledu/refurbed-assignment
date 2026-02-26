@@ -47,7 +47,7 @@ help:
 	@echo   make frontend-check - Run frontend production build check
 	@echo   make test-e2e       - Run frontend Playwright E2E tests
 	@echo   make e2e-install    - Install Playwright Chromium browser
-	@echo   make test-race      - Run backend race tests; requires CGO and gcc
+	@echo   make test-race      - Run backend race tests and requires CGO plus gcc
 	$(ECHO_BLANK)
 	@echo [CI / Gate]
 	@echo   make pre-push       - Run fmt, vet, lint, unit tests, E2E tests, and compose validation
