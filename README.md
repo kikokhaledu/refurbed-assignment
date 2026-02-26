@@ -103,8 +103,41 @@ make pre-push
 Note: `make test-e2e` runs `make e2e-install` first, so first-time machines auto-install Playwright Chromium.
 Note: E2E web servers are isolated from Compose default ports, so `make pre-push` can run even if `make up` is active.
 Note: `make test-race` requires `CGO_ENABLED=1` and a working `gcc` toolchain on macOS/Linux/Windows (for example Xcode CLT, build-essential, or MSYS2/MinGW). It is intentionally not part of `make pre-push`.
-Note: `make frontend-deps` tries `npm ci` first, then retries with `npx npm@10 ci`, and if that still fails it falls back to `npm ci` inside a `node:20-alpine` Docker container.
-Note: On Linux/macOS hosts with Node `< 18`, frontend lint/test/build commands are automatically executed in `node:20-alpine`, and E2E runs in `mcr.microsoft.com/playwright:v1.51.1-jammy`.
+
+## Linux Manual Setup (Recommended)
+Before running `make pre-push` on Linux, install/update the local toolchain first:
+
+```bash
+sudo apt update
+sudo apt install -y make docker.io docker-compose-v2 golang-go gcc g++ curl
+
+# Install Node 20 via nvm (recommended)
+curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+export NVM_DIR="$HOME/.nvm"
+. "$NVM_DIR/nvm.sh"
+nvm install 20
+nvm use 20
+npm install -g npm@10
+```
+
+Verify versions:
+
+```bash
+node -v   # expected: >= 18 (recommended: 20)
+npm -v    # expected: >= 9 (recommended: 10)
+go version
+docker --version
+docker compose version
+make --version
+```
+
+If you previously saw `npm ERR! Cannot read property 'vue' of undefined`, reset frontend deps and retry:
+
+```bash
+rm -rf assignment_vue/frontend-vue/node_modules
+make frontend-deps
+make pre-push
+```
 
 ## What I Would Improve/Change For Production
 - Replace in-memory cache with Redis for shared cache across instances, stronger invalidation options, and better horizontal scaling.
