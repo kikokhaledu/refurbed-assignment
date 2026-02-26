@@ -19,6 +19,11 @@ RUN_FMT_CHECK := @$(PWSH) 'Push-Location "$(BACKEND_DIR)"; $$unformatted = gofmt
 RUN_COMPOSE_CHECK := @$(PWSH) '$(COMPOSE_WITH_ENV) config *> $$null; if ($$LASTEXITCODE -ne 0) { exit 1 }; Write-Output "[compose-check] Passed [OK]"'
 RUN_TEST_RACE := @$(PWSH) 'if (-not (Get-Command gcc -ErrorAction SilentlyContinue)) { [Console]::Error.WriteLine("[test-race] gcc not found. Install gcc (for example via MSYS2/MinGW) and retry."); exit 1 }; Push-Location "$(BACKEND_DIR)"; $$env:CGO_ENABLED = "1"; $(GO) test ./... -race; $$exitCode = $$LASTEXITCODE; Pop-Location; if ($$exitCode -ne 0) { exit $$exitCode }; Write-Output "[test-race] Passed [OK]"'
 RUN_FRONTEND_DEPS := @$(PWSH) 'Push-Location "$(FRONTEND_VUE_DIR)"; $(NPM) ci; if ($$LASTEXITCODE -ne 0) { Write-Output "[frontend-deps] npm ci failed, retrying with npx npm@10 ci..."; npx --yes npm@10 ci }; if ($$LASTEXITCODE -ne 0) { Write-Output "[frontend-deps] npx npm@10 ci failed, retrying in Docker node:20-alpine..."; if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { Pop-Location; [Console]::Error.WriteLine("[frontend-deps] Docker not found and npm fallback failed. Install Node.js 18+ with npm 9+ or install Docker."); exit 1 }; $$workDir = (Get-Location).Path; docker run --rm -v "$${workDir}:/app" -w /app node:20-alpine sh -lc "npm ci" }; $$exitCode = $$LASTEXITCODE; Pop-Location; if ($$exitCode -ne 0) { exit $$exitCode }; Write-Output "[frontend-deps] Installed [OK]"'
+RUN_FRONTEND_TEST := @cd $(FRONTEND_VUE_DIR) && $(NPM) run test:run
+RUN_FRONTEND_LINT := @cd $(FRONTEND_VUE_DIR) && $(NPM) run lint
+RUN_FRONTEND_BUILD := @cd $(FRONTEND_VUE_DIR) && $(NPM) run build
+RUN_FRONTEND_E2E_INSTALL := @cd $(FRONTEND_VUE_DIR) && $(NPM) run e2e:install
+RUN_FRONTEND_E2E := @cd $(FRONTEND_VUE_DIR) && $(NPM) run e2e
 else
 ECHO_BLANK := @printf '\n'
 CHECK_ENV_FILE := @test -f $(ENV_FILE)
@@ -29,6 +34,37 @@ RUN_FMT_CHECK := @cd $(BACKEND_DIR) && files="$$(gofmt -l .)"; if [ -n "$$files"
 RUN_COMPOSE_CHECK := @$(COMPOSE_WITH_ENV) config > /dev/null && echo [compose-check] Passed [OK]
 RUN_TEST_RACE := @command -v gcc > /dev/null 2>&1 || { echo "[test-race] gcc not found. Install gcc and retry."; exit 1; }; cd $(BACKEND_DIR) && CGO_ENABLED=1 $(GO) test ./... -race && echo [test-race] Passed [OK]
 RUN_FRONTEND_DEPS := @cd $(FRONTEND_VUE_DIR) && ($(NPM) ci || (echo "[frontend-deps] npm ci failed, retrying with npx npm@10 ci..."; command -v npx > /dev/null 2>&1 && npx --yes npm@10 ci) || (echo "[frontend-deps] npx npm@10 ci failed, retrying in Docker node:20-alpine..."; command -v docker > /dev/null 2>&1 || { echo "[frontend-deps] Docker not found and npm fallback failed. Install Node.js 18+ with npm 9+ or install Docker."; exit 1; }; docker run --rm -u "$$(id -u):$$(id -g)" -v "$$(pwd):/app" -w /app node:20-alpine sh -lc "npm ci")) && echo [frontend-deps] Installed [OK]
+
+define RUN_FRONTEND_SCRIPT_POSIX
+@cd $(FRONTEND_VUE_DIR) && node_major="$$(node -p "parseInt(process.versions.node.split('.')[0], 10)" 2>/dev/null || echo 0)"; \
+if [ "$$node_major" -lt 18 ]; then \
+	echo "[frontend] Node $$node_major detected (<18), running npm run $(1) in Docker node:20-alpine..."; \
+	command -v docker > /dev/null 2>&1 || { echo "[frontend] Docker not found and local Node is too old. Install Node.js 18+ or Docker."; exit 1; }; \
+	docker run --rm -u "$$(id -u):$$(id -g)" -v "$$(pwd):/app" -w /app node:20-alpine sh -lc "npm run $(1)"; \
+else \
+	$(NPM) run $(1); \
+fi
+endef
+
+RUN_FRONTEND_TEST := $(call RUN_FRONTEND_SCRIPT_POSIX,test:run)
+RUN_FRONTEND_LINT := $(call RUN_FRONTEND_SCRIPT_POSIX,lint)
+RUN_FRONTEND_BUILD := $(call RUN_FRONTEND_SCRIPT_POSIX,build)
+
+RUN_FRONTEND_E2E_INSTALL := @cd $(FRONTEND_VUE_DIR) && node_major="$$(node -p "parseInt(process.versions.node.split('.')[0], 10)" 2>/dev/null || echo 0)"; \
+if [ "$$node_major" -lt 18 ]; then \
+	echo "[e2e-install] Node $$node_major detected (<18), skipping host browser install; test-e2e will run in Playwright Docker image."; \
+else \
+	$(NPM) run e2e:install; \
+fi
+
+RUN_FRONTEND_E2E := @cd $(FRONTEND_VUE_DIR) && node_major="$$(node -p "parseInt(process.versions.node.split('.')[0], 10)" 2>/dev/null || echo 0)"; \
+if [ "$$node_major" -lt 18 ]; then \
+	echo "[test-e2e] Node $$node_major detected (<18), running E2E in Playwright Docker image..."; \
+	command -v docker > /dev/null 2>&1 || { echo "[test-e2e] Docker not found and local Node is too old. Install Node.js 18+ or Docker."; exit 1; }; \
+	docker run --rm -u "$$(id -u):$$(id -g)" -v "$$(pwd):/app" -w /app mcr.microsoft.com/playwright:v1.51.1-jammy bash -lc "npm ci && npm run e2e"; \
+else \
+	$(NPM) run e2e; \
+fi
 endif
 
 .PHONY: help env-file-check docker-check up down reset seed logs test test-backend frontend-deps test-frontend frontend-lint frontend-check test-e2e e2e-install test-race fmt fmt-check vet lint compose-check pre-push clean
@@ -108,23 +144,23 @@ frontend-deps:
 
 test-frontend: frontend-deps
 	@echo [test-frontend] Running frontend unit tests...
-	@cd $(FRONTEND_VUE_DIR) && $(NPM) run test:run && echo [test-frontend] Passed [OK]
+	$(RUN_FRONTEND_TEST) && echo [test-frontend] Passed [OK]
 
 frontend-lint: frontend-deps
 	@echo [frontend-lint] Running frontend ESLint...
-	@cd $(FRONTEND_VUE_DIR) && $(NPM) run lint && echo [frontend-lint] Passed [OK]
+	$(RUN_FRONTEND_LINT) && echo [frontend-lint] Passed [OK]
 
 frontend-check: frontend-deps
 	@echo [frontend-check] Running frontend production build check...
-	@cd $(FRONTEND_VUE_DIR) && $(NPM) run build && echo [frontend-check] Passed [OK]
+	$(RUN_FRONTEND_BUILD) && echo [frontend-check] Passed [OK]
 
 test-e2e: e2e-install
 	@echo [test-e2e] Running Playwright E2E tests...
-	@cd $(FRONTEND_VUE_DIR) && $(NPM) run e2e && echo [test-e2e] Passed [OK]
+	$(RUN_FRONTEND_E2E) && echo [test-e2e] Passed [OK]
 
 e2e-install: frontend-deps
 	@echo [e2e-install] Installing Playwright Chromium...
-	@cd $(FRONTEND_VUE_DIR) && $(NPM) run e2e:install && echo [e2e-install] Done [OK]
+	$(RUN_FRONTEND_E2E_INSTALL) && echo [e2e-install] Done [OK]
 
 test-race:
 	@echo [test-race] Running Go race tests - requires CGO and gcc...

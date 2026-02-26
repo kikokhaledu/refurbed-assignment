@@ -104,6 +104,7 @@ Note: `make test-e2e` runs `make e2e-install` first, so first-time machines auto
 Note: E2E web servers are isolated from Compose default ports, so `make pre-push` can run even if `make up` is active.
 Note: `make test-race` requires `CGO_ENABLED=1` and a working `gcc` toolchain on macOS/Linux/Windows (for example Xcode CLT, build-essential, or MSYS2/MinGW). It is intentionally not part of `make pre-push`.
 Note: `make frontend-deps` tries `npm ci` first, then retries with `npx npm@10 ci`, and if that still fails it falls back to `npm ci` inside a `node:20-alpine` Docker container.
+Note: On Linux/macOS hosts with Node `< 18`, frontend lint/test/build commands are automatically executed in `node:20-alpine`, and E2E runs in `mcr.microsoft.com/playwright:v1.51.1-jammy`.
 
 ## What I Would Improve/Change For Production
 - Replace in-memory cache with Redis for shared cache across instances, stronger invalidation options, and better horizontal scaling.
