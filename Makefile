@@ -9,14 +9,12 @@ GOLANGCI_LINT ?= $(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@$
 COMPOSE_WITH_ENV = $(COMPOSE) --env-file $(ENV_FILE)
 
 ifeq ($(OS),Windows_NT)
-NULL := NUL
 ECHO_BLANK := @echo.
 else
-NULL := /dev/null
 ECHO_BLANK := @echo ""
 endif
 
-.PHONY: help env-file-check docker-check up down reset seed logs test test-backend test-frontend frontend-lint frontend-check test-e2e e2e-install test-race fmt fmt-check vet lint compose-check pre-push clean
+.PHONY: help env-file-check docker-check up down reset seed logs test test-backend frontend-deps test-frontend frontend-lint frontend-check test-e2e e2e-install test-race fmt fmt-check vet lint compose-check pre-push clean
 
 help:
 	@echo Available targets:
@@ -43,6 +41,7 @@ help:
 	@echo [Testing]
 	@echo   make test           - Run backend + frontend unit tests
 	@echo   make test-backend   - Run backend tests
+	@echo   make frontend-deps  - Install frontend dependencies (npm ci)
 	@echo   make test-frontend  - Run frontend unit tests (Vitest)
 	@echo   make frontend-lint  - Run frontend ESLint checks
 	@echo   make frontend-check - Run frontend production build check
@@ -101,15 +100,19 @@ test-backend:
 	@echo [test-backend] Running Go tests...
 	@cd $(BACKEND_DIR) && $(GO) test ./... && echo [test-backend] Passed [OK]
 
-test-frontend:
+frontend-deps:
+	@echo [frontend-deps] Installing frontend dependencies...
+	@cd $(FRONTEND_VUE_DIR) && $(NPM) ci && echo [frontend-deps] Installed [OK]
+
+test-frontend: frontend-deps
 	@echo [test-frontend] Running frontend unit tests...
 	@cd $(FRONTEND_VUE_DIR) && $(NPM) run test:run && echo [test-frontend] Passed [OK]
 
-frontend-lint:
+frontend-lint: frontend-deps
 	@echo [frontend-lint] Running frontend ESLint...
 	@cd $(FRONTEND_VUE_DIR) && $(NPM) run lint && echo [frontend-lint] Passed [OK]
 
-frontend-check:
+frontend-check: frontend-deps
 	@echo [frontend-check] Running frontend production build check...
 	@cd $(FRONTEND_VUE_DIR) && $(NPM) run build && echo [frontend-check] Passed [OK]
 
@@ -117,7 +120,7 @@ test-e2e: e2e-install
 	@echo [test-e2e] Running Playwright E2E tests...
 	@cd $(FRONTEND_VUE_DIR) && $(NPM) run e2e && echo [test-e2e] Passed [OK]
 
-e2e-install:
+e2e-install: frontend-deps
 	@echo [e2e-install] Installing Playwright Chromium...
 	@cd $(FRONTEND_VUE_DIR) && $(NPM) run e2e:install && echo [e2e-install] Done [OK]
 
@@ -147,7 +150,11 @@ lint:
 
 compose-check: env-file-check docker-check
 	@echo [compose-check] Validating docker-compose.yml...
-	@$(COMPOSE_WITH_ENV) config > $(NULL) && echo [compose-check] Passed [OK]
+ifeq ($(OS),Windows_NT)
+	@powershell -NoProfile -Command '$(COMPOSE_WITH_ENV) config *> $$null; if ($$LASTEXITCODE -ne 0) { exit 1 }; Write-Output "[compose-check] Passed [OK]"'
+else
+	@$(COMPOSE_WITH_ENV) config > /dev/null && echo [compose-check] Passed [OK]
+endif
 
 pre-push: fmt-check vet lint frontend-lint frontend-check test test-e2e compose-check
 	@echo [pre-push] All checks passed [OK]

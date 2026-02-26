@@ -1,0 +1,19 @@
+* text=auto
+
+# Keep Go sources LF so gofmt checks are stable on Windows/macOS/Linux.
+*.go text eol=lf
+*.mod text eol=lf
+*.sum text eol=lf
+
+# Keep build/config/docs consistent across platforms.
+Makefile text eol=lf
+Dockerfile text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.js text eol=lf
+*.vue text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.svg text eol=lf
