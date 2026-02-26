@@ -1,0 +1,18 @@
+# Ignore VCS and local tooling
+.git
+.gitignore
+.vscode
+.idea
+__MACOSX
+
+# Build/cache artifacts
+**/node_modules
+**/dist
+**/coverage
+**/.DS_Store
+**/Thumbs.db
+
+# Go artifacts
+**/*.test
+**/*.out
+**/bin

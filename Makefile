@@ -1,0 +1,157 @@
+GO ?= go
+NPM ?= npm
+COMPOSE ?= docker compose
+BACKEND_DIR ?= backend
+FRONTEND_VUE_DIR ?= assignment_vue/frontend-vue
+ENV_FILE ?= $(if $(wildcard .env),.env,.env.example)
+GOLANGCI_LINT_VERSION ?= v1.64.8
+GOLANGCI_LINT ?= $(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+COMPOSE_WITH_ENV = $(COMPOSE) --env-file $(ENV_FILE)
+
+ifeq ($(OS),Windows_NT)
+NULL := NUL
+ECHO_BLANK := @echo.
+else
+NULL := /dev/null
+ECHO_BLANK := @echo ""
+endif
+
+.PHONY: help env-file-check docker-check up down reset seed logs test test-backend test-frontend frontend-lint frontend-check test-e2e e2e-install test-race fmt fmt-check vet lint compose-check pre-push clean
+
+help:
+	@echo Available targets:
+	$(ECHO_BLANK)
+	@echo [Environment]
+	@echo   make env-file-check - Verify selected env file exists (.env or .env.example)
+	@echo   make docker-check    - Verify Docker CLI + daemon availability
+	@echo   make seed           - Validate backend seed data files
+	$(ECHO_BLANK)
+	@echo [Docker Stack]
+	@echo   make up             - Build and start backend + Vue frontend with Docker Compose
+	@echo   make down           - Stop Compose services
+	@echo   make reset          - Recreate full stack from scratch
+	@echo   make logs           - Tail backend + frontend logs
+	@echo   make clean          - Stop Compose services and remove volumes
+	@echo   make compose-check  - Validate docker-compose.yml
+	$(ECHO_BLANK)
+	@echo [Backend Quality]
+	@echo   make fmt            - Format backend Go code
+	@echo   make fmt-check      - Check backend Go formatting without modifying files
+	@echo   make vet            - Run go vet on backend
+	@echo   make lint           - Run golangci-lint on backend
+	$(ECHO_BLANK)
+	@echo [Testing]
+	@echo   make test           - Run backend + frontend unit tests
+	@echo   make test-backend   - Run backend tests
+	@echo   make test-frontend  - Run frontend unit tests (Vitest)
+	@echo   make frontend-lint  - Run frontend ESLint checks
+	@echo   make frontend-check - Run frontend production build check
+	@echo   make test-e2e       - Run frontend Playwright E2E tests
+	@echo   make e2e-install    - Install Playwright Chromium browser
+	@echo   make test-race      - Run backend race tests (requires CGO + gcc)
+	$(ECHO_BLANK)
+	@echo [CI / Gate]
+	@echo   make pre-push       - Run fmt, vet, lint, unit tests, E2E tests, and compose validation
+
+env-file-check:
+ifeq ($(OS),Windows_NT)
+	@powershell -NoProfile -Command "if (-not (Test-Path '$(ENV_FILE)')) { Write-Error 'Missing $(ENV_FILE)'; exit 1 }"
+else
+	@test -f $(ENV_FILE)
+endif
+	@echo [env] Using env file: $(ENV_FILE) [OK]
+
+docker-check:
+ifeq ($(OS),Windows_NT)
+	@powershell -NoProfile -Command 'docker --version > $$null 2>&1; if ($$LASTEXITCODE -ne 0) { Write-Error "[docker-check] Docker CLI not found. Install Docker Desktop and retry."; exit 1 }; docker info > $$null 2>&1; if ($$LASTEXITCODE -ne 0) { Write-Error "[docker-check] Docker engine is not reachable. Start Docker Desktop and wait until it is running, then retry make up."; exit 1 }; Write-Output "[docker-check] Docker engine reachable [OK]"'
+else
+	@command -v docker > /dev/null 2>&1 || { echo "[docker-check] Docker CLI not found. Install Docker and retry."; exit 1; }
+	@docker info > /dev/null 2>&1 || { echo "[docker-check] Docker engine is not reachable. Start Docker daemon/Desktop and retry."; exit 1; }
+	@echo [docker-check] Docker engine reachable [OK]
+endif
+
+up: env-file-check docker-check compose-check
+	@echo [up] Starting backend + frontend with Docker Compose...
+	@$(COMPOSE_WITH_ENV) up --build -d backend frontend && echo [up] Services are up [OK]
+
+down: env-file-check docker-check
+	@echo [down] Stopping Docker Compose services...
+	@$(COMPOSE_WITH_ENV) down --remove-orphans && echo [down] Services stopped [OK]
+
+reset: down seed up
+
+seed:
+	@echo [seed] Checking seed files...
+ifeq ($(OS),Windows_NT)
+	@powershell -NoProfile -Command "if (-not (Test-Path '$(BACKEND_DIR)/data/metadata.json')) { Write-Error 'Missing $(BACKEND_DIR)/data/metadata.json'; exit 1 }"
+	@powershell -NoProfile -Command "if (-not (Test-Path '$(BACKEND_DIR)/data/details.json')) { Write-Error 'Missing $(BACKEND_DIR)/data/details.json'; exit 1 }"
+else
+	@test -f $(BACKEND_DIR)/data/metadata.json
+	@test -f $(BACKEND_DIR)/data/details.json
+endif
+	@echo [seed] Seed data is present in $(BACKEND_DIR)/data [OK]
+
+logs: env-file-check docker-check
+	$(COMPOSE_WITH_ENV) logs -f backend frontend
+
+test: test-backend test-frontend
+	@echo [test] Backend + frontend unit tests passed [OK]
+
+test-backend:
+	@echo [test-backend] Running Go tests...
+	@cd $(BACKEND_DIR) && $(GO) test ./... && echo [test-backend] Passed [OK]
+
+test-frontend:
+	@echo [test-frontend] Running frontend unit tests...
+	@cd $(FRONTEND_VUE_DIR) && $(NPM) run test:run && echo [test-frontend] Passed [OK]
+
+frontend-lint:
+	@echo [frontend-lint] Running frontend ESLint...
+	@cd $(FRONTEND_VUE_DIR) && $(NPM) run lint && echo [frontend-lint] Passed [OK]
+
+frontend-check:
+	@echo [frontend-check] Running frontend production build check...
+	@cd $(FRONTEND_VUE_DIR) && $(NPM) run build && echo [frontend-check] Passed [OK]
+
+test-e2e: e2e-install
+	@echo [test-e2e] Running Playwright E2E tests...
+	@cd $(FRONTEND_VUE_DIR) && $(NPM) run e2e && echo [test-e2e] Passed [OK]
+
+e2e-install:
+	@echo [e2e-install] Installing Playwright Chromium...
+	@cd $(FRONTEND_VUE_DIR) && $(NPM) run e2e:install && echo [e2e-install] Done [OK]
+
+test-race:
+	@echo [test-race] Running Go race tests (CGO + gcc required)...
+	@cd $(BACKEND_DIR) && CGO_ENABLED=1 $(GO) test ./... -race && echo [test-race] Passed [OK]
+
+fmt:
+	@echo [fmt] Formatting backend Go code...
+	@cd $(BACKEND_DIR) && $(GO) fmt ./... && echo [fmt] Passed [OK]
+
+fmt-check:
+	@echo [fmt-check] Checking backend Go formatting...
+ifeq ($(OS),Windows_NT)
+	@powershell -NoProfile -Command 'Push-Location "$(BACKEND_DIR)"; $$unformatted = gofmt -l .; Pop-Location; if ($$unformatted) { $$unformatted; Write-Error "[fmt-check] Unformatted files found"; exit 1 }; Write-Output "[fmt-check] Passed [OK]"'
+else
+	@cd $(BACKEND_DIR) && files="$$(gofmt -l .)"; if [ -n "$$files" ]; then echo "$$files"; echo "[fmt-check] Unformatted files found"; exit 1; fi && echo [fmt-check] Passed [OK]
+endif
+
+vet:
+	@echo [vet] Running go vet...
+	@cd $(BACKEND_DIR) && $(GO) vet ./... && echo [vet] Passed [OK]
+
+lint:
+	@echo [lint] Running golangci-lint...
+	@cd $(BACKEND_DIR) && $(GOLANGCI_LINT) run ./... && echo [lint] Passed [OK]
+
+compose-check: env-file-check docker-check
+	@echo [compose-check] Validating docker-compose.yml...
+	@$(COMPOSE_WITH_ENV) config > $(NULL) && echo [compose-check] Passed [OK]
+
+pre-push: fmt-check vet lint frontend-lint frontend-check test test-e2e compose-check
+	@echo [pre-push] All checks passed [OK]
+
+clean: env-file-check docker-check
+	@echo [clean] Stopping services and removing volumes...
+	@$(COMPOSE_WITH_ENV) down --remove-orphans --volumes && echo [clean] Done [OK]

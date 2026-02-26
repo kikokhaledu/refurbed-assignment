@@ -1,0 +1,66 @@
+[
+  {
+    "id": "p1",
+    "name": "iPhone 12",
+    "base_price": 414.99,
+    "image_url": "https://files.refurbed.com/ii/iphone-12-1607327732.jpg?h=600&t=fitdesign&w=800",
+    "category": "smartphones",
+    "brand": "apple"
+  },
+  {
+    "id": "p2",
+    "name": "MacBook Pro 13\"",
+    "base_price": 1299.99,
+    "image_url": "https://files.refurbed.com/ii/apple-macbook-pro-2022-m2-13-tb-1674051346.jpg?h=600&t=fitdesign&w=800",
+    "category": "laptops",
+    "brand": "apple"
+  },
+  {
+    "id": "p3",
+    "name": "iPad Air",
+    "base_price": 599.99,
+    "image_url": "https://files.refurbed.com/ii/ipad-air-5-1646899619.jpg?h=600&t=fitdesign&w=800",
+    "category": "tablets",
+    "brand": "apple"
+  },
+  {
+    "id": "p4",
+    "name": "AirPods Pro",
+    "base_price": 249.99,
+    "image_url": "https://files.refurbed.com/ii/apple-airpods-pro-1647238686.jpg?h=600&t=fitdesign&w=800",
+    "category": "accessories",
+    "brand": "apple"
+  },
+  {
+    "id": "p5",
+    "name": "Apple Watch Series 7",
+    "base_price": 429.99,
+    "image_url": "https://files.refurbed.com/ii/apple-watch-series-7-alu-45mm-1641892087.jpg?h=600&t=fitdesign&w=800",
+    "category": "accessories",
+    "brand": "apple"
+  },
+  {
+    "id": "p6",
+    "name": "iMac 24\"",
+    "base_price": 1499.99,
+    "image_url": "https://files.refurbed.com/pi/apple-imac-4k-2017-21-5-1547454540.jpg?h=600&t=fitdesign&w=800",
+    "category": "desktops",
+    "brand": "samsung"
+  },
+  {
+    "id": "p7",
+    "name": "Mac Mini",
+    "base_price": 699.99,
+    "image_url": "https://files.refurbed.com/pi/apple-mac-mini-2024-m4-1730354433.jpg?h=600&t=fitdesign&w=800",
+    "category": "desktops",
+    "brand": "google"
+  },
+  {
+    "id": "p8",
+    "name": "HomePod Mini",
+    "base_price": 99.99,
+    "image_url": "https://files.refurbed.com/ii/apple-homepod-mini-1661342310.jpg?h=600&t=fitdesign&w=800",
+    "category": "accessories",
+    "brand": "xiaomi"
+  }
+]

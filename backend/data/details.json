@@ -1,0 +1,138 @@
+[
+  {
+    "id": "p1",
+    "discount_percent": 25,
+    "bestseller": true,
+    "colors": ["blue", "red", "green"],
+    "image_urls_by_color": {
+      "blue": "https://files.refurbed.com/ii/iphone-12-1607327732.jpg?h=600&t=fitdesign&w=800",
+      "red": "https://files.refurbed.com/pi/iphone-12-1627375405.jpg?t=resize&h=600&w=600",
+      "green": "https://files.refurbed.com/pi/iphone-13-mini-1647245009.jpg?t=resize&h=600&w=600"
+    },
+    "stock": 34,
+    "stock_by_color": {
+      "blue": 12,
+      "red": 0,
+      "green": 22
+    },
+    "condition": "refurbished"
+  },
+  {
+    "id": "p2",
+    "discount_percent": 10,
+    "bestseller": true,
+    "colors": ["silver", "gray"],
+    "image_urls_by_color": {
+      "silver": "https://files.refurbed.com/ii/apple-macbook-pro-2022-m2-13-tb-1674051346.jpg?h=600&t=fitdesign&w=800",
+      "gray": "https://files.refurbed.com/pi/apple-macbook-air-m1-2020-1676984034.jpg?t=resize&h=630&w=1200"
+    },
+    "stock": 12,
+    "stock_by_color": {
+      "silver": 7,
+      "gray": 5
+    },
+    "condition": "refurbished"
+  },
+  {
+    "id": "p3",
+    "discount_percent": 15,
+    "bestseller": false,
+    "colors": ["silver", "blue", "pink"],
+    "image_urls_by_color": {
+      "silver": "https://files.refurbed.com/ii/ipad-air-5-1646899619.jpg?h=600&t=fitdesign&w=800",
+      "blue": "https://files.refurbed.com/pi/asus-rog-flow-z13-gz301v-13900h-1702895480.jpg?t=resize&h=600&w=600",
+      "pink": "https://files.refurbed.com/pi/google-pixel-8-pro-1700127157.jpg?t=resize&h=600&w=600"
+    },
+    "stock": 23,
+    "stock_by_color": {
+      "silver": 10,
+      "blue": 8,
+      "pink": 5
+    },
+    "condition": "refurbished"
+  },
+  {
+    "id": "p4",
+    "discount_percent": 20,
+    "bestseller": true,
+    "colors": ["white"],
+    "image_urls_by_color": {
+      "white": "https://files.refurbed.com/ii/apple-airpods-pro-1647238686.jpg?h=600&t=fitdesign&w=800"
+    },
+    "stock": 45,
+    "stock_by_color": {
+      "white": 45
+    },
+    "condition": "new"
+  },
+  {
+    "id": "p5",
+    "discount_percent": 0,
+    "bestseller": false,
+    "colors": ["black", "silver", "blue"],
+    "image_urls_by_color": {
+      "black": "https://files.refurbed.com/ii/apple-watch-series-7-alu-45mm-1641892087.jpg?h=600&t=fitdesign&w=800",
+      "silver": "https://files.refurbed.com/pi/iphone-15-1694604015.jpg?t=resize&h=600&w=600",
+      "blue": "https://files.refurbed.com/pi/iphone-13-mini-1647245009.jpg?t=resize&h=600&w=600"
+    },
+    "stock": 18,
+    "stock_by_color": {
+      "black": 6,
+      "silver": 4,
+      "blue": 8
+    },
+    "condition": "refurbished"
+  },
+  {
+    "id": "p6",
+    "discount_percent": 5,
+    "bestseller": false,
+    "colors": ["silver", "blue", "green", "pink"],
+    "image_urls_by_color": {
+      "silver": "https://files.refurbed.com/pi/apple-imac-4k-2017-21-5-1547454540.jpg?h=600&t=fitdesign&w=800",
+      "blue": "https://files.refurbed.com/pi/apple-mac-mini-2024-m4-1730354433.jpg?h=600&t=fitdesign&w=800",
+      "green": "https://files.refurbed.com/pi/asus-rog-flow-z13-gz301v-13900h-1702895480.jpg?t=resize&h=600&w=600",
+      "pink": "https://files.refurbed.com/pi/google-pixel-8-pro-1700127157.jpg?t=resize&h=600&w=600"
+    },
+    "stock": 8,
+    "stock_by_color": {
+      "silver": 2,
+      "blue": 2,
+      "green": 2,
+      "pink": 2
+    },
+    "condition": "used"
+  },
+  {
+    "id": "p7",
+    "discount_percent": 12,
+    "bestseller": false,
+    "colors": ["silver"],
+    "image_urls_by_color": {
+      "silver": "https://files.refurbed.com/pi/apple-mac-mini-2024-m4-1730354433.jpg?h=600&t=fitdesign&w=800"
+    },
+    "stock": 15,
+    "stock_by_color": {
+      "silver": 15
+    },
+    "condition": "used"
+  },
+  {
+    "id": "p8",
+    "discount_percent": 0,
+    "bestseller": false,
+    "colors": ["white", "blue", "orange"],
+    "image_urls_by_color": {
+      "white": "https://files.refurbed.com/ii/apple-homepod-mini-1661342310.jpg?h=600&t=fitdesign&w=800",
+      "blue": "https://files.refurbed.com/pi/iphone-15-1694604015.jpg?t=resize&h=600&w=600",
+      "orange": "https://files.refurbed.com/pi/iphone-12-1627375405.jpg?t=resize&h=600&w=600"
+    },
+    "stock": 67,
+    "stock_by_color": {
+      "white": 20,
+      "blue": 30,
+      "orange": 17
+    },
+    "condition": "new"
+  }
+]
