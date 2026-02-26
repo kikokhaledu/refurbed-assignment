@@ -180,3 +180,4 @@ make pre-push
 - Current implementation intentionally prioritizes clarity, correctness, and testability over premature complexity.
 - For this assignment scope, in-memory filtering and caching are sufficient and avoid overengineering.
 - SEO is intentionally baseline-level for this challenge; the production path is documented above.
+- use pnpm later
